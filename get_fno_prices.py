@@ -25,14 +25,16 @@ def get_month_expiry_dates(next_month=0):
     return val
 
 def get_symbol_futures_price(sym, day_val, mon_val, year_val):
-    day=date(datetime.now().year,datetime.now().month,datetime.now().day)
-    stock_fut = get_history(symbol=sym,
+	day=date(datetime.now().year,datetime.now().month,datetime.now().day)
+	stock_fut = get_history(symbol=sym,
                         start=day,
                         end=day,
                         futures=True,
                         expiry_date=date(year_val,mon_val,day_val))
+	if len(stock_fut) == 0:
+		return []
     
-    return float(stock_fut['Last'][0])
+	return float(stock_fut['Last'][0])
 
 def get_list_of_futures_price_for_next_months(symbol):
     month={1:"JAN", 2:"FEB",3:"JAN",4:"JAN",5:"JAN",6:"JAN",7:"JUL",8:"AUG",9:"SEP",10:"OCT",11:"NOV",12:"DEC"};
@@ -44,7 +46,8 @@ def get_list_of_futures_price_for_next_months(symbol):
     
     day_val = get_month_expiry_dates()
     val = get_symbol_futures_price(symbol,day_val[0],day_val[1],day_val[2])
-
+    if len(val) == 0:
+	    return;
     day_val_next_month = get_month_expiry_dates(1)
     val_next_month = get_symbol_futures_price(symbol,day_val_next_month[0],day_val_next_month[1],day_val_next_month[2])
     
@@ -77,6 +80,8 @@ def get_list_of_futures_price_for_next_months(symbol):
     print(month[day_val_next_month[1]] + " Fut Price : " + str(val_next_month))
     print("********************")
 
+print("Checking First List")
+
 fno_list = ['ACC','ADANIENT','ADANIPORTS','ADANIPOWER','AMARAJABAT','AMBUJACEM','APOLLOHOSP','APOLLOTYRE','ASHOKLEY',
             'ASIANPAINT','AUROPHARMA','AXISBANK','BAJAJ-AUTO','BAJAJFINSV','BAJFINANCE','BALKRISIND','BANKBARODA',
             'BANKINDIA','BATAINDIA','BEL','BERGEPAINT','BHARATFORG','BHARTIARTL','BHEL','BIOCON','BOSCHLTD','BPCL','BRITANNIA',
@@ -89,17 +94,21 @@ fno_list = ['ACC','ADANIENT','ADANIPORTS','ADANIPOWER','AMARAJABAT','AMBUJACEM',
             'MOTHERSUMI','MRF','MUTHOOTFIN']
 for symbol in fno_list:
     get_list_of_futures_price_for_next_months(symbol)
+
+print("Checking Second List")
+
     
 fno_list = ['NATIONALUM','NBCC','NCC','NESTLEIND','NIITTECH','NMDC','NTPC','OIL','ONGC',
             'PAGEIND','PEL','PETRONET','PFC','PIDILITIND','PNB','POWERGRID','PVR','RAMCOCEM','RBLBANK','RECLTD','RELIANCE',
-            'SAIL','SBIN','SHREECEM','SIEMENS','SRF','SRTRANSFIN','STAR']{'SUNPHARMA','SUNTV','TATACHEM','TATAELXSI',
-            'TATAGLOBAL','TATAMOTORS','TATAMTRDVR','TATAPOWER','TATASTEEL','TCS','TECHM','TITAN','TORNTPHARM','TORNTPOWER',
-            'TVSMOTOR','UBL','UJJIVAN','ULTRACEMCO','UNIONBANK','UPL','VEDL','VOLTAS','WIPRO','YESBANK','ZEEL']
+            'SAIL','SBIN','SHREECEM','SIEMENS','SRF','SRTRANSFIN','STAR']
 for symbol in fno_list:
     get_list_of_futures_price_for_next_months(symbol)
+
+print("Checking Third List")
+
                                                                           
 fno_list = ['SUNPHARMA','SUNTV','TATACHEM','TATAELXSI',
             'TATAGLOBAL','TATAMOTORS','TATAMTRDVR','TATAPOWER','TATASTEEL','TCS','TECHM','TITAN','TORNTPHARM','TORNTPOWER',
             'TVSMOTOR','UBL','UJJIVAN','ULTRACEMCO','UNIONBANK','UPL','VEDL','VOLTAS','WIPRO','YESBANK','ZEEL']
 for symbol in fno_list:    
-    get_list_of_futures_price_for_next_months(symbol)                                                                          
+    get_list_of_futures_price_for_next_months(symbol)                                     
