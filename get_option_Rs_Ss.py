@@ -11,6 +11,8 @@ from bs4 import BeautifulSoup
 from pprint import pprint
 import json
 
+highest_oi={}
+
 PUTS=1
 CALLS=2
 
@@ -32,7 +34,7 @@ def get_quote(sym):
 	return quote
 
 def get_next_expiry_dates(monthly):
-    month={1:"JAN", 2:"JAN",3:"JAN",4:"JAN",5:"JAN",6:"JAN",7:"JUL",8:"AUG",9:"SEP",10:"OCT",11:"NOV",12:"DEC"};
+    month={1:"JAN", 2:"FEB",3:"MAR",4:"APR",5:"MAY",6:"JUN",7:"JUL",8:"AUG",9:"SEP",10:"OCT",11:"NOV",12:"DEC"};
     year = datetime.now().year
     c = calendar.TextCalendar(calendar.THURSDAY)
     m = datetime.now().month
@@ -44,13 +46,13 @@ def get_next_expiry_dates(monthly):
             if day.weekday() == 3: #Thursday
                 val=str(i)
                 if(i<10):
-                    val="0"+str
+                    val="0"+str(i)
                 val += str(month[m])+str(year)
                 if monthly != 1:
                     return val
     return val
 
-def print_resistence(entry):
+def print_resistence(entry,symbol):
     global return_string
     levels=[]
     oi_info={}
@@ -67,7 +69,8 @@ def print_resistence(entry):
     ret=""
     R=[]
     for i in levels:
-        val="Resistence R" + str(count) + " : " + str(i) #+ "        OI : " + str(oi_info[i])
+        val="Resistence R" + str(count) + " : " + str(i) + "        OI : " + str(oi_info[i])
+        highest_oi[oi_info[i]] = symbol + "->" + str(i)+":"+"Resistence"+":"+str(oi_info[i])
         R.append("R"+str(count)+" : "+str(i))
         oi_value += oi_info[i]
         count -= 1;
@@ -75,7 +78,7 @@ def print_resistence(entry):
         return_string = return_string + val + "\n"
     return oi_value, R
 
-def print_support(entry):
+def print_support(entry,symbol):
     global return_string
     levels=[]
     oi_info={}
@@ -90,7 +93,8 @@ def print_support(entry):
     count=1
     S=[]
     for i in levels[0:2]:
-        val="Support S" + str(count) + " : " + str(i) #+ "           OI : " + str(oi_info[i])
+        val="Support S" + str(count) + " : " + str(i) + "           OI : " + str(oi_info[i])
+        highest_oi[oi_info[i]] = symbol + "->" + str(i)+":"+"Support"+":"+str(oi_info[i])
         S.append("S"+str(count)+" : "+str(i))
         oi_value += oi_info[i]
         count += 1;
@@ -101,14 +105,35 @@ def print_support(entry):
 def get_options_chain_data(symbol,expdate):
 
     Base_url = "https://www.nseindia.com/live_market/dynaContent/live_watch/option_chain/optionKeys.jsp?symbol=" + symbol + "&date=" + expdate
-
+    #print(Base_url)
     page = requests.get(Base_url)
     soup = BeautifulSoup(page.content, 'html.parser')
-    print("Got option chain response from nse")
+    #print("Got option chain response from nse")
     table_cls_2 = soup.find(id="octable")
     req_row = table_cls_2.find_all('tr')
     return req_row
 
+def extract_pcr(req_row):
+    count=0
+    entries={}
+    puts_list=[]
+
+    for row_number, tr_nos in enumerate(req_row):
+    # This ensures that we use only the rows with values
+        if row_number <= 1 or row_number == len(req_row):
+            continue
+        td_columns = tr_nos.find_all('td')
+        if(BeautifulSoup(str(td_columns[0]), 'html.parser').get_text() == "Total"):
+            calls_oi=(BeautifulSoup(str(td_columns[1]), 'html.parser').get_text()).strip().replace(',','')
+            puts_oi=(BeautifulSoup(str(td_columns[7]), 'html.parser').get_text()).strip().replace(',','')
+
+            calls_vol=(BeautifulSoup(str(td_columns[3]), 'html.parser').get_text()).strip().replace(',','')
+            puts_vol=(BeautifulSoup(str(td_columns[5]), 'html.parser').get_text()).strip().replace(',','')
+
+            oi_pcr = int(puts_oi)/int(calls_oi)
+            vol_pcr = int(puts_vol)/int(calls_vol)
+            return "OI_PCR:" + str(oi_pcr) + ", VOL_PCR:" + str(vol_pcr)	
+	
 def extract_oi_data(req_row,calls_or_puts,current_index):
     count=0
     entries={}
@@ -180,20 +205,19 @@ def get_RAndS_levels(symbol):
     else:
         current_index=get_quote(symbol)
 	
-    print("got index quote:"+ str(datetime.now()))
+    #print("got index quote:"+ str(datetime.now()))
     req_row = get_options_chain_data(symbol,expdate)
-    print("got option chain data:"+ str(datetime.now()))
+    #print("got option chain data:"+ str(datetime.now()))
     calls=extract_oi_data(req_row,CALLS,current_index)
-    print("got calls : "+ str(datetime.now()))
+    #print("got calls : "+ str(datetime.now()))
     puts=extract_oi_data(req_row,PUTS,current_index)
-    print("got puts : " + str(datetime.now()))
-	
+    #print("got puts : " + str(datetime.now()))
     return_string=""
     return_string="Resistence and Support: " + symbol.upper() + "\n"
     return_string=return_string + "Expiry Date: " + expdate + "\n"
     return_string=return_string + "======================================" + "\n"
 
-    c_oi,R=print_resistence(calls)
+    c_oi,R=print_resistence(calls,symbol)
 	
     return_string=return_string + "\n"
     print("",end = "\n")
@@ -201,10 +225,11 @@ def get_RAndS_levels(symbol):
     return_string=return_string + "Index Value:" + str(current_index) + "\n"
     print("Index Value : ",current_index)
     R.append("Index : " + str(current_index))
+    R.append(extract_pcr(req_row))
     return_string=return_string + "\n"
     print("",end = "\n")
 	
-    p_oi,S=print_support(puts)
+    p_oi,S=print_support(puts,symbol)
 	
     return_string=return_string + "\n"
     print("",end = "\n")
@@ -225,10 +250,36 @@ def get_RAndS_levels(symbol):
 
 consolidated={}
 #get_RAndS_levels('')
-stocks_list=['','HDFC','HDFCBANK','ICICIBANK','RELIANCE','INFY', 'MARUTI', 'TCS', 'BAJFINANCE']
+#stocks_list=['','IDFCFIRSTB','yesbank']
+stocks_list=['','ACC','ADANIENT','ADANIPORTS','ADANIPOWER','AMARAJABAT','AMBUJACEM','APOLLOHOSP','APOLLOTYRE','ASHOKLEY',
+            'ASIANPAINT','AUROPHARMA','AXISBANK','BAJAJ-AUTO','BAJAJFINSV','BAJFINANCE','BALKRISIND','BANKBARODA',
+            'BANKINDIA','BATAINDIA','BEL','BERGEPAINT','BHARATFORG','BHARTIARTL','BHEL','BIOCON','BOSCHLTD','BPCL','BRITANNIA',
+            'CADILAHC','CANBK','CASTROLIND','CENTURYTEX','CESC','CHOLAFIN','CIPLA','COALINDIA','COLPAL','CONCOR',
+            'CUMMINSIND','DABUR','DISHTV','DIVISLAB','DLF','DRREDDY','EICHERMOT','EQUITAS','ESCORTS','EXIDEIND','FEDERALBNK',
+            'GAIL','GLENMARK','GMRINFRA','GODREJCP','GRASIM','HAVELLS','HCLTECH','HDFC','HDFCBANK','HEROMOTOCO','HEXAWARE',
+            'HINDALCO','HINDPETRO','HINDUNILVR','IBULHSGFIN','ICICIBANK','ICICIPRULI','IDEA','IDFCFIRSTB','IGL','INDIGO',
+            'INDUSINDBK','INFRATEL','INFY','IOC','ITC','JINDALSTEL','JSWSTEEL','JUBLFOOD','JUSTDIAL','KOTAKBANK','L&TFH',
+            'LICHSGFIN','LT','LUPIN','M&M','M&MFIN','MANAPPURAM','MARICO','MARUTI','MCDOWELL-N','MFSL','MGL','MINDTREE',
+            'MOTHERSUMI','MRF','MUTHOOTFIN','NATIONALUM','NBCC','NCC','NESTLEIND','NIITTECH','NMDC','NTPC','OIL','ONGC',
+            'PAGEIND','PEL','PETRONET','PFC','PIDILITIND','PNB','POWERGRID','PVR','RAMCOCEM','RBLBANK','RECLTD','RELIANCE',
+            'SAIL','SBIN','SHREECEM','SIEMENS','SRF','SRTRANSFIN','STAR','SUNPHARMA','SUNTV','TATACHEM','TATAELXSI',
+            'TATAGLOBAL','TATAMOTORS','TATAMTRDVR','TATAPOWER','TATASTEEL','TCS','TECHM','TITAN','TORNTPHARM','TORNTPOWER',
+            'TVSMOTOR','UBL','UJJIVAN','ULTRACEMCO','UNIONBANK','UPL','VEDL','VOLTAS','WIPRO','YESBANK','ZEEL']
 for stock in stocks_list:
-    s,d = get_RAndS_levels(stock)
+    try:
+        if stock != '' and get_quote(stock) <= 25:
+            continue
+        s,d = get_RAndS_levels(stock)
+    except:
+        continue
     if stock == '':
         stock='BANKNIFTY'
     consolidated[stock]=d[stock]
+    	
 print(json.dumps(consolidated, indent = 4))
+top5=10
+for i in sorted(highest_oi.keys(), reverse=True):
+	print(highest_oi[i])
+	top5 = top5 -1
+	if top5 < 0:
+		break
